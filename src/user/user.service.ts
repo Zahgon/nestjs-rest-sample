@@ -1,16 +1,14 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EMPTY, from, Observable, of, throwError } from 'rxjs';
 import { mergeMap, tap, throwIfEmpty, catchError, map } from 'rxjs/operators';
 import { RoleType } from '../shared/enum/role-type.enum';
-import { USER_MODEL } from '../database/database.constants';
+import { NotFoundException } from '../core/http-exception';
 import { User, UserMethods, UserModel } from '../database/user.model';
 import { SendgridService } from '../sendgrid/sendgrid.service';
 import { RegisterDto } from './register.dto';
 
-@Injectable()
 export class UserService {
   constructor(
-    @Inject(USER_MODEL) private readonly userModel: UserModel,
+    private readonly userModel: UserModel,
     private readonly sendgridService: SendgridService,
   ) {}
 

@@ -1,12 +1,9 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { Comment } from '../database/comment.model';
-import { COMMENT_MODEL, POST_MODEL } from '../database/database.constants';
 import { Post } from '../database/post.model';
 import { CreatePostDto } from './create-post.dto';
 
-@Injectable()
-export class PostDataInitializerService implements OnModuleInit {
+export class PostDataInitializerService {
   private data: CreatePostDto[] = [
     {
       title: 'Generate a NestJS project',
@@ -23,8 +20,8 @@ export class PostDataInitializerService implements OnModuleInit {
   ];
 
   constructor(
-    @Inject(POST_MODEL) private postModel: Model<Post>,
-    @Inject(COMMENT_MODEL) private commentModel: Model<Comment>,
+    private postModel: Model<Post>,
+    private commentModel: Model<Comment>,
   ) {}
 
   async onModuleInit(): Promise<void> {

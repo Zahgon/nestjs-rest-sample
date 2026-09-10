@@ -1,7 +1,8 @@
-import { JwtService } from '@nestjs/jwt';
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
+import { Types } from 'mongoose';
 import { of } from 'rxjs';
-import jwtConfig from '../config/jwt.config';
+import { JwtConfig } from '../config/jwt.config';
+import { JwtService } from '../core/jwt.service';
 import { User, UserMethods } from '../database/user.model';
 import { UserService } from '../user/user.service';
 import { AuthService } from './auth.service';
@@ -13,39 +14,17 @@ describe('AuthService', () => {
   let jwtService: JwtService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuthService,
-        {
-          provide: UserService,
-          useValue: {
-            constructor: jest.fn(),
-            findByUsername: jest.fn(),
-          },
-        },
-        {
-          provide: JwtService,
-          useValue: {
-            constructor: jest.fn(),
-            signAsync: jest.fn(),
-            verifyAsync: jest.fn(),
-          },
-        },
-        {
-          provide: jwtConfig.KEY,
-          useValue: {
-            secretKey: 'test-secret',
-            expiresIn: '3600s',
-            refreshSecretKey: 'test-refresh-secret',
-            refreshExpiresIn: '7d',
-          },
-        },
-      ],
-    }).compile();
+    userService = createMock<UserService>();
+    jwtService = createMock<JwtService>();
 
-    service = module.get<AuthService>(AuthService);
-    userService = module.get<UserService>(UserService);
-    jwtService = module.get<JwtService>(JwtService);
+    const jwtConf: JwtConfig = {
+      secretKey: 'test-secret',
+      expiresIn: '3600s',
+      refreshSecretKey: 'test-refresh-secret',
+      refreshExpiresIn: '7d',
+    };
+
+    service = new AuthService(userService, jwtService, jwtConf);
   });
 
   it('should be defined', () => {
@@ -58,7 +37,7 @@ describe('AuthService', () => {
         .spyOn(userService, 'findByUsername')
         .mockImplementation((username: string) => {
           return of({
-            _id: 'userid' as any,
+            _id: new Types.ObjectId(),
             username,
             password: 'password',
             email: 'hantsy@example.com',
@@ -84,7 +63,7 @@ describe('AuthService', () => {
         .spyOn(userService, 'findByUsername')
         .mockImplementation((username: string) => {
           return of({
-            _id: 'userid' as any,
+            _id: new Types.ObjectId(),
             username,
             password: 'password',
             email: 'hantsy@example.com',

@@ -1,15 +1,9 @@
-import { ConfigModule, ConfigType } from '@nestjs/config';
-import { TestingModule, Test } from '@nestjs/testing';
-import mongodbConfig from './mongodb.config';
+import mongodbConfig, { MongodbConfig } from './mongodb.config';
 
 describe('mongodbConfig', () => {
-  let config: ConfigType<typeof mongodbConfig>;
+  let config: MongodbConfig;
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forFeature(mongodbConfig)],
-    }).compile();
-
-    config = module.get<ConfigType<typeof mongodbConfig>>(mongodbConfig.KEY);
+    config = mongodbConfig();
   });
 
   it('should be defined', () => {

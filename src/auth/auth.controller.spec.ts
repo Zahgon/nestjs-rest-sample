@@ -1,41 +1,34 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 import { lastValueFrom, of } from 'rxjs';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthenticatedRequest } from './interface/authenticated-request.interface';
+import { UserPrincipal } from './interface/user-principal.interface';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: AuthService;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [
-        {
-          provide: AuthService,
-          useValue: {
-            constructor: jest.fn(),
-            login: jest.fn(),
-            refreshToken: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+    authService = createMock<AuthService>();
 
-    controller = app.get<AuthController>(AuthController);
-    authService = app.get<AuthService>(AuthService);
+    controller = new AuthController(authService);
   });
 
   describe('login', () => {
     it('should return tokens', async () => {
       jest
         .spyOn(authService, 'login')
-        .mockImplementation((user: any) =>
+        .mockImplementation((user: UserPrincipal) =>
           of({ access_token: 'jwttoken', refresh_token: 'refreshtoken' }),
         );
 
       const token = await lastValueFrom(
-        controller.login({ user: { id: '1', username: 'test' } } as any),
+        controller.login(
+          createMock<AuthenticatedRequest>({
+            user: { id: '1', username: 'test' },
+          }),
+        ),
       );
       expect(token.access_token).toBe('jwttoken');
       expect(token.refresh_token).toBe('refreshtoken');

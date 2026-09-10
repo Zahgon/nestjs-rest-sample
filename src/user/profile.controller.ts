@@ -1,22 +1,26 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Router } from 'express';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
+import { handle, RouteDeps } from '../core/route';
 
-@ApiTags('profile')
-@Controller()
 export class ProfileController {
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  @ApiBearerAuth()
-  @ApiOkResponse({ description: 'Current user profile.' })
-  @ApiUnauthorizedResponse({ description: 'Not authenticated.' })
-  getProfile(@Req() req: Request): any {
+  getProfile(req: Request): any {
     return req.user;
   }
 }
+
+export const createProfileRouter = (
+  controller: ProfileController,
+  { throttler }: RouteDeps,
+): Router => {
+  const router = Router();
+  const jwtAuthGuard = new JwtAuthGuard();
+
+  router.get(
+    '/profile',
+    throttler.forHandler('ProfileController', 'getProfile'),
+    jwtAuthGuard.use(),
+    handle((req) => controller.getProfile(req)),
+  );
+
+  return router;
+};

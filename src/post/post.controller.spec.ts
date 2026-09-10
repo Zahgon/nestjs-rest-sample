@@ -1,4 +1,3 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { lastValueFrom, Observable, of } from 'rxjs';
 import { anyNumber, anyString, instance, mock, verify, when } from 'ts-mockito';
 import { Post } from '../database/post.model';
@@ -15,17 +14,15 @@ describe('Post Controller', () => {
     let controller: PostController;
 
     beforeEach(async () => {
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          {
-            provide: PostService,
-            useClass: PostServiceStub,
-          },
-        ],
-        controllers: [PostController],
-      }).compile();
-
-      controller = await module.resolve<PostController>(PostController);
+      // The Nest testing module resolved `{ provide: PostService, useClass:
+      // PostServiceStub }`. Without a container the stub class is instantiated
+      // and handed to the constructor directly. PostServiceStub satisfies
+      // `Pick<PostService, keyof PostService>` rather than PostService itself --
+      // PostService declares private members -- so the substitution is spelled
+      // out at the seam instead of being erased by the container.
+      controller = new PostController(
+        new PostServiceStub() as unknown as PostService,
+      );
     });
 
     it('should be defined', () => {
@@ -144,26 +141,22 @@ describe('Post Controller', () => {
     const id = '5ee49c3115a4e75254bb732e';
 
     beforeEach(async () => {
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          {
-            provide: PostService,
-            useValue: {
-              findAll: (_keyword?: string, _skip?: number, _limit?: number) =>
-                of<any[]>([
-                  {
-                    _id: id,
-                    title: 'test title',
-                    content: 'test content',
-                  },
-                ]),
+      // `useValue` with a hand-written fake object: the literal stands in for the
+      // whole service and only the method under test is spelled out.
+      const fakePostService = {
+        findAll: (_keyword?: string, _skip?: number, _limit?: number) =>
+          of<any[]>([
+            {
+              _id: id,
+              title: 'test title',
+              content: 'test content',
             },
-          },
-        ],
-        controllers: [PostController],
-      }).compile();
+          ]),
+      };
 
-      controller = await module.resolve<PostController>(PostController);
+      controller = new PostController(
+        fakePostService as unknown as PostService,
+      );
     });
 
     it('should get all posts(useValue: fake object)', async () => {
@@ -178,32 +171,26 @@ describe('Post Controller', () => {
     const id = '5ee49c3115a4e75254bb732e';
 
     beforeEach(async () => {
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          {
-            provide: PostService,
-            useValue: {
-              constructor: jest.fn(),
-              findAll: jest
-                .fn()
-                .mockImplementation(
-                  (_keyword?: string, _skip?: number, _limit?: number) =>
-                    of<any[]>([
-                      {
-                        _id: id,
-                        title: 'test title',
-                        content: 'test content',
-                      },
-                    ]),
-                ),
-            },
-          },
-        ],
-        controllers: [PostController],
-      }).compile();
+      // `useValue` with a jest-mocked object: the same substitution as above, but
+      // the stand-in records its calls so the delegation can be asserted.
+      const mockedPostService = {
+        constructor: jest.fn(),
+        findAll: jest
+          .fn()
+          .mockImplementation(
+            (_keyword?: string, _skip?: number, _limit?: number) =>
+              of<any[]>([
+                {
+                  _id: id,
+                  title: 'test title',
+                  content: 'test content',
+                },
+              ]),
+          ),
+      };
 
-      controller = await module.resolve<PostController>(PostController);
-      postService = module.get<PostService>(PostService);
+      postService = mockedPostService as unknown as PostService;
+      controller = new PostController(postService);
     });
 
     it('should get all posts(useValue: jest mocking)', async () => {

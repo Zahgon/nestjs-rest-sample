@@ -1,34 +1,14 @@
 import { createMock } from '@golevelup/ts-jest';
-import { ExecutionContext } from '@nestjs/common';
-import { HttpArgumentsHost } from '@nestjs/common/interfaces';
-import { Reflector } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
-import { mock as jestMock, mockClear } from 'jest-mock-extended';
+import { mock as jestMock, mockClear, MockProxy } from 'jest-mock-extended';
 import { instance, mock, reset, verify, when } from 'ts-mockito';
 import { RoleType } from '../../shared/enum/role-type.enum';
-import { HAS_ROLES_KEY } from '../auth.constants';
 import { AuthenticatedRequest } from '../interface/authenticated-request.interface';
 import { RolesGuard } from './roles.guard';
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;
-  let reflector: Reflector;
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RolesGuard,
-        {
-          provide: Reflector,
-          useValue: {
-            constructor: jest.fn(),
-            get: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    guard = module.get<RolesGuard>(RolesGuard);
-    reflector = module.get<Reflector>(Reflector);
+    guard = new RolesGuard([]);
   });
 
   afterEach(async () => {
@@ -40,139 +20,121 @@ describe('RolesGuard', () => {
   });
 
   it('should skip(return true) if the `HasRoles` decorator is not set', async () => {
-    jest.spyOn(reflector, 'get').mockImplementation((a: any, b: any) => []);
-    const context = createMock<ExecutionContext>();
-    const result = await guard.canActivate(context);
+    const request = createMock<AuthenticatedRequest>();
+    const result = guard.canActivate(request);
 
     expect(result).toBeTruthy();
-    expect(reflector.get).toHaveBeenCalled();
   });
 
   it('should return true if the `HasRoles` decorator is set', async () => {
-    jest
-      .spyOn(reflector, 'get')
-      .mockImplementation((a: any, b: any) => [RoleType.USER]);
-    const context = createMock<ExecutionContext>({
-      getHandler: jest.fn(),
-      switchToHttp: jest.fn().mockReturnValue({
-        getRequest: jest.fn().mockReturnValue({
-          user: { roles: [RoleType.USER] },
-        } as AuthenticatedRequest),
-      }),
+    guard = new RolesGuard([RoleType.USER]);
+    const request = createMock<AuthenticatedRequest>({
+      user: {
+        username: 'hantsy',
+        id: '_id',
+        email: 'hantsy@example.com',
+        roles: [RoleType.USER],
+      },
     });
 
-    const result = await guard.canActivate(context);
+    const result = guard.canActivate(request);
     expect(result).toBeTruthy();
-    expect(reflector.get).toHaveBeenCalled();
   });
 
   it('should return false if the `HasRoles` decorator is set but role is not allowed', async () => {
-    jest.spyOn(reflector, 'get').mockReturnValue([RoleType.ADMIN]);
-    const request = {
-      user: { roles: [RoleType.USER] },
-    } as AuthenticatedRequest;
-    const context = createMock<ExecutionContext>();
-    const httpArgsHost = createMock<HttpArgumentsHost>({
-      getRequest: () => request,
+    guard = new RolesGuard([RoleType.ADMIN]);
+    const request = createMock<AuthenticatedRequest>({
+      user: {
+        username: 'hantsy',
+        id: '_id',
+        email: 'hantsy@example.com',
+        roles: [RoleType.USER],
+      },
     });
-    context.switchToHttp.mockImplementation(() => httpArgsHost);
 
-    const result = await guard.canActivate(context);
+    const result = guard.canActivate(request);
     expect(result).toBeFalsy();
-    expect(reflector.get).toHaveBeenCalled();
   });
 });
 
 describe('RolesGuard(ts-mockito)', () => {
   let guard: RolesGuard;
-  const reflecter = mock(Reflector);
+  let request: AuthenticatedRequest;
   beforeEach(() => {
-    guard = new RolesGuard(instance(reflecter));
+    request = mock<AuthenticatedRequest>();
   });
 
   afterEach(() => {
-    reset();
+    reset(request);
   });
 
   it('should skip(return true) if the `HasRoles` decorator is not set', async () => {
-    const context = mock<ExecutionContext>();
-    when(context.getHandler()).thenReturn({} as any);
+    guard = new RolesGuard([] as RoleType[]);
 
-    const contextInstacne = instance(context);
-    when(
-      reflecter.get<RoleType[]>(HAS_ROLES_KEY, contextInstacne.getHandler()),
-    ).thenReturn([] as RoleType[]);
-    const result = await guard.canActivate(contextInstacne);
+    when(request.user).thenReturn({
+      username: 'hantsy',
+      id: '_id',
+      email: 'hantsy@example.com',
+      roles: [RoleType.USER],
+    });
+
+    const requestInstacne = instance(request);
+    const result = guard.canActivate(requestInstacne);
 
     expect(result).toBeTruthy();
-    verify(
-      reflecter.get<RoleType[]>(HAS_ROLES_KEY, contextInstacne.getHandler()),
-    ).once();
+    verify(request.user).never();
   });
 
   it('should return true if the `HasRoles` decorator is set', async () => {
-    const context = mock<ExecutionContext>();
+    guard = new RolesGuard([RoleType.USER] as RoleType[]);
 
-    when(context.getHandler()).thenReturn({} as any);
+    when(request.user).thenReturn({
+      username: 'hantsy',
+      id: '_id',
+      email: 'hantsy@example.com',
+      roles: [RoleType.USER],
+    });
 
-    const arguHost = mock<HttpArgumentsHost>();
-    when(arguHost.getRequest()).thenReturn({
-      user: { roles: [RoleType.USER] },
-    } as any);
+    const requestInstacne = instance(request);
 
-    when(context.switchToHttp()).thenReturn(instance(arguHost));
-    const contextInstacne = instance(context);
-
-    when(
-      reflecter.get<RoleType[]>(HAS_ROLES_KEY, contextInstacne.getHandler()),
-    ).thenReturn([RoleType.USER] as RoleType[]);
-
-    const result = await guard.canActivate(contextInstacne);
+    const result = guard.canActivate(requestInstacne);
     console.log(result);
     expect(result).toBeTruthy();
-    verify(
-      reflecter.get<RoleType[]>(HAS_ROLES_KEY, contextInstacne.getHandler()),
-    ).once();
+    verify(request.user).once();
   });
 
   it('should return false if the `HasRoles` decorator is set but role is not allowed', async () => {
-    const context = mock<ExecutionContext>();
-
-    when(context.getHandler()).thenReturn({} as any);
+    // but requires ADMIN
+    guard = new RolesGuard([RoleType.ADMIN] as RoleType[]);
 
     // logged in as USER
-    const arguHost = mock<HttpArgumentsHost>();
-    when(arguHost.getRequest()).thenReturn({
-      user: { roles: [RoleType.USER] },
-    } as any);
+    when(request.user).thenReturn({
+      username: 'hantsy',
+      id: '_id',
+      email: 'hantsy@example.com',
+      roles: [RoleType.USER],
+    });
 
-    when(context.switchToHttp()).thenReturn(instance(arguHost));
-    const contextInstacne = instance(context);
+    const requestInstacne = instance(request);
 
-    // but requires ADMIN
-    when(
-      reflecter.get<RoleType[]>(HAS_ROLES_KEY, contextInstacne.getHandler()),
-    ).thenReturn([RoleType.ADMIN] as RoleType[]);
-
-    const result = await guard.canActivate(contextInstacne);
+    const result = guard.canActivate(requestInstacne);
     console.log(result);
     expect(result).toBeFalsy();
-    verify(
-      reflecter.get<RoleType[]>(HAS_ROLES_KEY, contextInstacne.getHandler()),
-    ).once();
+    verify(request.user).once();
   });
 });
 
 describe('RoelsGuard(jest-mock-extended)', () => {
   let guard: RolesGuard;
-  const reflecter = jestMock<Reflector>();
+  let request: MockProxy<AuthenticatedRequest> & AuthenticatedRequest;
 
   beforeEach(() => {
-    guard = new RolesGuard(reflecter);
+    guard = new RolesGuard([]);
+    request = jestMock<AuthenticatedRequest>();
   });
 
   afterEach(() => {
-    mockClear(reflecter);
+    mockClear(request);
   });
 
   it('should be defined', () => {
@@ -180,59 +142,43 @@ describe('RoelsGuard(jest-mock-extended)', () => {
   });
 
   it('should skip(return true) if the `HasRoles` decorator is not set', async () => {
-    const context = jestMock<ExecutionContext>();
-    context.getHandler.mockReturnValue({} as any);
-    reflecter.get
-      .mockReturnValue([])
-      .calledWith(HAS_ROLES_KEY, context.getHandler());
-
-    const result = await guard.canActivate(context);
+    const result = guard.canActivate(request);
 
     expect(result).toBeTruthy();
-    expect(reflecter.get).toHaveBeenCalledTimes(1);
   });
 
   it('should return true if the `HasRoles` decorator is set', async () => {
-    const context = jestMock<ExecutionContext>();
-    context.getHandler.mockReturnValue({} as any);
+    guard = new RolesGuard([RoleType.USER]);
+    request = jestMock<AuthenticatedRequest>({
+      user: {
+        username: 'hantsy',
+        id: '_id',
+        email: 'hantsy@example.com',
+        roles: [RoleType.USER],
+      },
+    });
 
-    const arguHost = jestMock<HttpArgumentsHost>();
-    arguHost.getRequest.mockReturnValue({
-      user: { roles: [RoleType.USER] },
-    } as any);
-
-    context.switchToHttp.mockReturnValue(arguHost);
-
-    reflecter.get
-      .mockReturnValue([RoleType.USER])
-      .calledWith(HAS_ROLES_KEY, context.getHandler());
-
-    const result = await guard.canActivate(context);
+    const result = guard.canActivate(request);
 
     expect(result).toBeTruthy();
-    expect(reflecter.get).toHaveBeenCalledTimes(1);
   });
 
   it('should return false if the `HasRoles` decorator is set but role is not allowed', async () => {
     // logged in as USER
-    const context = jestMock<ExecutionContext>();
-    context.getHandler.mockReturnValue({} as any);
-
-    const arguHost = jestMock<HttpArgumentsHost>();
-    arguHost.getRequest.mockReturnValue({
-      user: { roles: [RoleType.USER] },
-    } as any);
-
-    context.switchToHttp.mockReturnValue(arguHost);
+    request = jestMock<AuthenticatedRequest>({
+      user: {
+        username: 'hantsy',
+        id: '_id',
+        email: 'hantsy@example.com',
+        roles: [RoleType.USER],
+      },
+    });
 
     //but requires ADMIN
-    reflecter.get
-      .mockReturnValue([RoleType.ADMIN])
-      .calledWith(HAS_ROLES_KEY, context.getHandler());
+    guard = new RolesGuard([RoleType.ADMIN]);
 
-    const result = await guard.canActivate(context);
+    const result = guard.canActivate(request);
 
     expect(result).toBeFalsy();
-    expect(reflecter.get).toHaveBeenCalledTimes(1);
   });
 });

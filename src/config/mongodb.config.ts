@@ -1,5 +1,7 @@
-import { registerAs } from '@nestjs/config';
+export interface MongodbConfig {
+  uri: string;
+}
 
-export default registerAs('mongodb', () => ({
+export default (): MongodbConfig => ({
   uri: process.env.MONGODB_URI || 'mongodb://localhost/blog',
-}));
+});

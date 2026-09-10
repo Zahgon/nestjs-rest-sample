@@ -2,7 +2,7 @@ import * as mongoose from 'mongoose';
 import { ParseObjectIdPipe } from './parse-object-id.pipe';
 
 describe('ParseObjectIdPipe', () => {
-  let isObjectId: any;
+  let isObjectId: ParseObjectIdPipe;
 
   beforeEach(() => {
     isObjectId = new ParseObjectIdPipe();
@@ -14,13 +14,13 @@ describe('ParseObjectIdPipe', () => {
 
   it('if valid', () => {
     const validId = new mongoose.Types.ObjectId().toHexString();
-    const result = isObjectId.transform(validId, {} as any);
+    const result = isObjectId.transform(validId);
     expect(result).toEqual(validId);
   });
 
   it('if invalid', () => {
     try {
-      const result = isObjectId.transform('anerror', {} as any);
+      const result = isObjectId.transform('anerror');
     } catch (e) {
       expect(e).not.toBeNull();
     }

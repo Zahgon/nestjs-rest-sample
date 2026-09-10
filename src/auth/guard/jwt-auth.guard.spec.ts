@@ -1,6 +1,6 @@
 import { createMock } from '@golevelup/ts-jest';
-import { ExecutionContext } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Request, Response } from 'express';
+import { AuthGuard } from '../../core/auth-guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 describe('LocalAuthGuard', () => {
@@ -14,13 +14,15 @@ describe('LocalAuthGuard', () => {
   });
 
   it('should return true for `canActivate`', async () => {
-    AuthGuard('jwt').prototype.canActivate = jest.fn(() =>
-      Promise.resolve(true),
-    );
-    AuthGuard('jwt').prototype.logIn = jest.fn(() => Promise.resolve());
-    expect(
-      await guard.canActivate(createMock<ExecutionContext>()),
-    ).toBeTruthy();
+    const canActivate = AuthGuard.prototype.canActivate;
+    AuthGuard.prototype.canActivate = jest.fn(() => Promise.resolve(true));
+    try {
+      expect(
+        await guard.canActivate(createMock<Request>(), createMock<Response>()),
+      ).toBeTruthy();
+    } finally {
+      AuthGuard.prototype.canActivate = canActivate;
+    }
   });
 
   it('handleRequest: error', async () => {

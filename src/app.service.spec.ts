@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AppService } from './app.service';
+import { createLogger } from './logger/logger.providers';
 import { LoggerService } from './logger/logger.service';
 
 describe('AppService', () => {
@@ -7,18 +7,10 @@ describe('AppService', () => {
   let service: AppService;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      providers: [
-        AppService,
-        {
-          provide: 'LoggerServiceAppService',
-          useValue: { log: jest.fn() },
-        },
-      ],
-    }).compile();
+    logger = createLogger('AppService');
+    jest.spyOn(logger, 'log').mockImplementation(() => undefined);
 
-    service = app.get<AppService>(AppService);
-    logger = app.get<LoggerService>('LoggerServiceAppService');
+    service = new AppService(logger);
   });
 
   it('should be defined', () => {

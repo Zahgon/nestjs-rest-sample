@@ -1,15 +1,9 @@
-import { ConfigModule, ConfigType } from '@nestjs/config';
-import { TestingModule, Test } from '@nestjs/testing';
-import jwtConfig from './jwt.config';
+import jwtConfig, { JwtConfig } from './jwt.config';
 
 describe('jwtConfig', () => {
-  let config: ConfigType<typeof jwtConfig>;
+  let config: JwtConfig;
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forFeature(jwtConfig)],
-    }).compile();
-
-    config = module.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY);
+    config = jwtConfig();
   });
 
   it('should be defined', () => {

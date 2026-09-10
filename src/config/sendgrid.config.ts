@@ -1,5 +1,7 @@
-import { registerAs } from '@nestjs/config';
+export interface SendgridConfig {
+  apiKey: string;
+}
 
-export default registerAs('sendgrid', () => ({
+export default (): SendgridConfig => ({
   apiKey: process.env.SENDGRID_API_KEY || 'SG.test',
-}));
+});

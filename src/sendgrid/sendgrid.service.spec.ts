@@ -1,7 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 import { MailService } from '@sendgrid/mail';
 import { lastValueFrom } from 'rxjs';
-import { SENDGRID_MAIL } from './sendgrid.constants';
 import { SendgridService } from './sendgrid.service';
 
 describe('SendgridService', () => {
@@ -9,20 +8,8 @@ describe('SendgridService', () => {
   let mailService: MailService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SendgridService,
-        {
-          provide: SENDGRID_MAIL,
-          useValue: {
-            send: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    service = module.get<SendgridService>(SendgridService);
-    mailService = module.get<MailService>(SENDGRID_MAIL);
+    mailService = createMock<MailService>();
+    service = new SendgridService(mailService);
   });
 
   it('should be defined', () => {
@@ -44,7 +31,7 @@ describe('SendgridService', () => {
 
     const sendSpy = jest
       .spyOn(mailService, 'send')
-      .mockResolvedValue({} as any);
+      .mockResolvedValue([{ statusCode: 202, body: {}, headers: {} }, {}]);
 
     await lastValueFrom(service.send(msg));
     expect(sendSpy).toHaveBeenCalledTimes(1);

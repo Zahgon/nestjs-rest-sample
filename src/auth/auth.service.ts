@@ -1,21 +1,18 @@
-import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigType } from '@nestjs/config';
 import { EMPTY, from, Observable, of } from 'rxjs';
 import { mergeMap, map, throwIfEmpty } from 'rxjs/operators';
-import jwtConfig from '../config/jwt.config';
+import { JwtConfig } from '../config/jwt.config';
+import { UnauthorizedException } from '../core/http-exception';
+import { JwtService } from '../core/jwt.service';
 import { UserService } from '../user/user.service';
 import { AccessToken } from './interface/access-token.interface';
 import { JwtPayload as TokenPayload } from './interface/jwt-payload.interface';
 import { UserPrincipal } from './interface/user-principal.interface';
 
-@Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
-    @Inject(jwtConfig.KEY)
-    private jwtConf: ConfigType<typeof jwtConfig>,
+    private jwtConf: JwtConfig,
   ) {}
 
   validateUser(username: string, pass: string): Observable<UserPrincipal> {

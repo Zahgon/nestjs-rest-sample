@@ -1,15 +1,26 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Router } from 'express';
+import { handle, RouteDeps } from './core/route';
 import { AppService } from './app.service';
 
-@ApiTags('root')
-@Controller()
 export class AppController {
-  constructor(private readonly service: AppService) {}
+  constructor(private readonly appService: AppService) {}
 
-  @Get('')
-  @ApiOkResponse({ description: 'Returns hello world greeting.' })
   getHello(): string {
-    return this.service.getHello();
+    return this.appService.getHello();
   }
 }
+
+export const createAppRouter = (
+  controller: AppController,
+  { throttler }: RouteDeps,
+): Router => {
+  const router = Router();
+
+  router.get(
+    '/',
+    throttler.forHandler('AppController', 'getHello'),
+    handle(() => controller.getHello()),
+  );
+
+  return router;
+};

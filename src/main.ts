@@ -1,39 +1,62 @@
-import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import helmet from 'helmet';
-import compression from 'compression';
-import { AppModule } from './app.module';
+import 'reflect-metadata';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+import { Server } from 'http';
 
-  app.enableShutdownHooks();
+import { createApp } from './app';
+import { createContainer } from './container';
+import { ValidationPipe } from './core/validation';
+import { validationSchema } from './config/validation';
 
-  app.useGlobalPipes(
-    new ValidationPipe({
+/**
+ * Validates the process environment against the schema and writes back every
+ * value the schema supplied a default for, without overwriting anything the
+ * environment already carries.
+ */
+export const loadEnvironment = (): void => {
+  const { error, value } = validationSchema.validate(process.env, {
+    allowUnknown: true,
+    abortEarly: false,
+  });
+
+  if (error) {
+    throw new Error(`Config validation error: ${error.message}`);
+  }
+
+  Object.entries(value as Record<string, unknown>)
+    .filter(([key]) => !(key in process.env))
+    .forEach(([key, item]) => {
+      process.env[key] = String(item);
+    });
+};
+
+async function bootstrap(): Promise<void> {
+  loadEnvironment();
+
+  const container = createContainer({
+    validationPipe: new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
-  );
+  });
 
-  app.enableCors();
+  await container.onModuleInit();
 
-  app.use(helmet());
-  app.use(compression());
+  const app = createApp(container);
+  const server: Server = app.listen(process.env.PORT ?? 3000);
 
-  const config = new DocumentBuilder()
-    .setTitle('NestJS Sample API')
-    .setDescription('Blog API with JWT authentication')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  const shutdown = (): void => {
+    server.close(() => {
+      void container.close();
+    });
+  };
 
-  await app.listen(process.env.PORT ?? 3000);
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+  process.on('SIGQUIT', shutdown);
 }
 
-bootstrap();
+void bootstrap();

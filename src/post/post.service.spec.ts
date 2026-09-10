@@ -1,72 +1,68 @@
-import { REQUEST } from '@nestjs/core';
-import { Test, TestingModule } from '@nestjs/testing';
 import { Model, Types } from 'mongoose';
 import { lastValueFrom } from 'rxjs';
 
+import { AuthenticatedRequest } from '../auth/interface/authenticated-request.interface';
 import { Comment } from '../database/comment.model';
-import { COMMENT_MODEL, POST_MODEL } from '../database/database.constants';
 import { Post } from '../database/post.model';
 import { PostService } from './post.service';
 import { CreatePostDto } from './create-post.dto';
 
+// The Nest testing module handed the models in through the POST_MODEL and
+// COMMENT_MODEL tokens and the request through REQUEST. The service now takes
+// all three as constructor arguments, so the `useValue` objects are kept as
+// plain jest mocks and passed positionally.
+type MockedModel = Record<string, jest.Mock>;
+
 describe('PostService', () => {
   let service: PostService;
-  let model: Model<Post>;
-  let commentModel: Model<Comment>;
+  let model: MockedModel;
+  let commentModel: MockedModel;
 
   const TEST_USER_ID = new Types.ObjectId('605c39f4bcf86cd799439011');
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PostService,
-        {
-          provide: POST_MODEL,
-          useValue: {
-            new: jest.fn(),
-            constructor: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            update: jest.fn(),
-            create: jest.fn(),
-            remove: jest.fn(),
-            exec: jest.fn(),
-            deleteMany: jest.fn(),
-            deleteOne: jest.fn(),
-            updateOne: jest.fn(),
-            findOneAndUpdate: jest.fn(),
-            findOneAndDelete: jest.fn(),
-          },
-        },
-        {
-          provide: COMMENT_MODEL,
-          useValue: {
-            new: jest.fn(),
-            constructor: jest.fn(),
-            find: jest.fn(),
-            findOne: jest.fn(),
-            updateOne: jest.fn(),
-            deleteOne: jest.fn(),
-            update: jest.fn(),
-            create: jest.fn(),
-            remove: jest.fn(),
-            exec: jest.fn(),
-          },
-        },
-        {
-          provide: REQUEST,
-          useValue: {
-            user: {
-              id: '605c39f4bcf86cd799439011',
-            },
-          },
-        },
-      ],
-    }).compile();
+    model = {
+      new: jest.fn(),
+      constructor: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+      remove: jest.fn(),
+      exec: jest.fn(),
+      deleteMany: jest.fn(),
+      deleteOne: jest.fn(),
+      updateOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
+      findOneAndDelete: jest.fn(),
+    };
 
-    service = await module.resolve<PostService>(PostService);
-    model = module.get<Model<Post>>(POST_MODEL);
-    commentModel = module.get<Model<Comment>>(COMMENT_MODEL);
+    commentModel = {
+      new: jest.fn(),
+      constructor: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(),
+      updateOne: jest.fn(),
+      deleteOne: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+      remove: jest.fn(),
+      exec: jest.fn(),
+    };
+
+    // The service is no longer request-scoped through the container; the router
+    // builds a fresh instance per request, so the request is the third argument.
+    const req = {
+      user: {
+        id: '605c39f4bcf86cd799439011',
+      },
+    } as unknown as AuthenticatedRequest;
+
+    service = new PostService(
+      model as unknown as Model<Post>,
+      commentModel as unknown as Model<Comment>,
+      req,
+    );
   });
 
   it('should be defined', () => {
@@ -94,10 +90,10 @@ describe('PostService', () => {
     jest.spyOn(model, 'find').mockReturnValue({
       skip: jest.fn().mockReturnValue({
         limit: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValueOnce(posts) as any,
+          exec: jest.fn().mockResolvedValueOnce(posts),
         }),
       }),
-    } as any);
+    });
 
     const data = await lastValueFrom(service.findAll());
     expect(data.length).toBe(3);
@@ -110,7 +106,7 @@ describe('PostService', () => {
             exec: jest.fn().mockResolvedValueOnce([posts[0]]),
           }),
         }),
-      } as any;
+      };
     });
 
     const result = await lastValueFrom(service.findAll('Generate', 0, 10));
@@ -129,8 +125,8 @@ describe('PostService', () => {
       };
 
       jest.spyOn(model, 'findOne').mockReturnValue({
-        exec: jest.fn().mockResolvedValueOnce(found) as any,
-      } as any);
+        exec: jest.fn().mockResolvedValueOnce(found),
+      });
 
       service.findById('1').subscribe({
         next: (data) => {
@@ -144,8 +140,8 @@ describe('PostService', () => {
 
     it('if not found throw an NotFoundException', (done) => {
       jest.spyOn(model, 'findOne').mockReturnValue({
-        exec: jest.fn().mockResolvedValueOnce(null) as any,
-      } as any);
+        exec: jest.fn().mockResolvedValueOnce(null),
+      });
 
       service.findById('1').subscribe({
         next: (data) => {
@@ -168,7 +164,7 @@ describe('PostService', () => {
     const toReturned = {
       _id: '5ee49c3115a4e75254bb732e',
       ...toCreated,
-    } as any;
+    };
 
     jest
       .spyOn(model, 'create')
@@ -192,8 +188,8 @@ describe('PostService', () => {
       };
 
       jest.spyOn(model, 'findOneAndUpdate').mockReturnValue({
-        exec: jest.fn().mockResolvedValue(toUpdated) as any,
-      } as any);
+        exec: jest.fn().mockResolvedValue(toUpdated),
+      });
 
       service.update('5ee49c3115a4e75254bb732e', toUpdated).subscribe({
         next: (data) => {
@@ -212,8 +208,8 @@ describe('PostService', () => {
         content: 'test content',
       };
       jest.spyOn(model, 'findOneAndUpdate').mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null) as any,
-      } as any);
+        exec: jest.fn().mockResolvedValue(null),
+      });
 
       service.update('5ee49c3115a4e75254bb732e', toUpdated).subscribe({
         error: (error) => {
@@ -234,7 +230,7 @@ describe('PostService', () => {
       };
       jest.spyOn(model, 'findOneAndDelete').mockReturnValue({
         exec: jest.fn().mockResolvedValueOnce(toDeleted),
-      } as any);
+      });
 
       service.deleteById('anystring').subscribe({
         next: (data) => {
@@ -249,7 +245,7 @@ describe('PostService', () => {
     it('throw an NotFoundException if post not exists', (done) => {
       jest.spyOn(model, 'findOneAndDelete').mockReturnValue({
         exec: jest.fn().mockResolvedValue(null),
-      } as any);
+      });
       service.deleteById('anystring').subscribe({
         error: (error) => {
           expect(error).toBeDefined();
@@ -265,7 +261,7 @@ describe('PostService', () => {
       exec: jest.fn().mockResolvedValueOnce({
         deletedCount: 1,
       }),
-    } as any);
+    });
 
     service.deleteAll().subscribe({
       next: (data) => expect(data).toBeTruthy,
@@ -281,7 +277,7 @@ describe('PostService', () => {
     const mockedCreateResult = {
       ...comment,
       post: TEST_OBJ_ID,
-    } as any;
+    };
     jest
       .spyOn(commentModel, 'create')
       .mockImplementation((any) => Promise.resolve(mockedCreateResult));
@@ -309,9 +305,9 @@ describe('PostService', () => {
               content: 'content',
               post: TEST_OBJ_ID,
             },
-          ] as any),
+          ]),
         }),
-      } as any;
+      };
     });
 
     const result = await lastValueFrom(service.commentsOf(TEST_ID));

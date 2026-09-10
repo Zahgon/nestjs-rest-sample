@@ -1,19 +1,16 @@
-import {
-  Injectable,
-  ExecutionContext,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Observable } from 'rxjs';
+import { Request, Response } from 'express';
+import { AuthGuard } from '../../core/auth-guard';
+import { UnauthorizedException } from '../../core/http-exception';
 
-@Injectable()
-export class JwtAuthGuard extends AuthGuard('jwt') {
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+export class JwtAuthGuard extends AuthGuard {
+  constructor() {
+    super('jwt');
+  }
+
+  canActivate(req: Request, res: Response): Promise<boolean> {
     // Add your custom authentication logic here
     // for example, call super.logIn(request) to establish a session.
-    return super.canActivate(context);
+    return super.canActivate(req, res);
   }
 
   handleRequest(err: any, user: any, info: any) {

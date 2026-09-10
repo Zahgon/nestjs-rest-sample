@@ -1,37 +1,12 @@
-import {
-  Body,
-  Controller,
-  DefaultValuePipe,
-  Delete,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-  Query,
-  Res,
-  Scope,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiForbiddenResponse,
-  ApiNoContentResponse,
-  ApiNotFoundResponse,
-  ApiOkResponse,
-  ApiQuery,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response, Router } from 'express';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { RoleType } from '../shared/enum/role-type.enum';
-import { HasRoles } from '../auth/guard/has-roles.decorator';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
-import { RolesGuard } from '../auth/guard/roles.guard';
+import { hasRoles } from '../auth/guard/roles.guard';
 import { ParseObjectIdPipe } from '../shared/pipe/parse-object-id.pipe';
+import { handle, RouteDeps } from '../core/route';
+import { defaultValue, parseIntValue } from '../core/transform';
 import { Comment } from '../database/comment.model';
 import { Post as BlogPost } from '../database/post.model';
 import { CreateCommentDto } from './create-comment.dto';
@@ -39,54 +14,22 @@ import { CreatePostDto } from './create-post.dto';
 import { PostService } from './post.service';
 import { UpdatePostDto } from './update-post.dto';
 
-@ApiTags('posts')
-@Controller({ path: 'posts', scope: Scope.REQUEST })
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
-  @Get('')
-  @ApiQuery({ name: 'q', required: false, description: 'Search keyword' })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Page size',
-    example: 10,
-  })
-  @ApiQuery({
-    name: 'skip',
-    required: false,
-    description: 'Offset',
-    example: 0,
-  })
-  @ApiOkResponse({ description: 'List of posts.' })
   getAllPosts(
-    @Query('q') keyword?: string,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit?: number,
-    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip?: number,
+    keyword?: string,
+    limit?: number,
+    skip?: number,
   ): Observable<BlogPost[]> {
     return this.postService.findAll(keyword, skip, limit);
   }
 
-  @Get(':id')
-  @ApiOkResponse({ description: 'Post found.' })
-  @ApiNotFoundResponse({ description: 'Post not found.' })
-  getPostById(
-    @Param('id', ParseObjectIdPipe) id: string,
-  ): Observable<BlogPost> {
+  getPostById(id: string): Observable<BlogPost> {
     return this.postService.findById(id);
   }
 
-  @Post('')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @HasRoles(RoleType.USER, RoleType.ADMIN)
-  @ApiBearerAuth()
-  @ApiCreatedResponse({ description: 'Post created.' })
-  @ApiUnauthorizedResponse({ description: 'Not authenticated.' })
-  @ApiForbiddenResponse({ description: 'Insufficient permissions.' })
-  createPost(
-    @Body() post: CreatePostDto,
-    @Res() res: Response,
-  ): Observable<Response> {
+  createPost(post: CreatePostDto, res: Response): Observable<Response> {
     return this.postService.save(post).pipe(
       map((post) => {
         return res
@@ -97,17 +40,10 @@ export class PostController {
     );
   }
 
-  @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @HasRoles(RoleType.USER, RoleType.ADMIN)
-  @ApiBearerAuth()
-  @ApiNoContentResponse({ description: 'Post updated.' })
-  @ApiNotFoundResponse({ description: 'Post not found.' })
-  @ApiUnauthorizedResponse({ description: 'Not authenticated.' })
   updatePost(
-    @Param('id', ParseObjectIdPipe) id: string,
-    @Body() post: UpdatePostDto,
-    @Res() res: Response,
+    id: string,
+    post: UpdatePostDto,
+    res: Response,
   ): Observable<Response> {
     return this.postService.update(id, post).pipe(
       map(() => {
@@ -116,18 +52,7 @@ export class PostController {
     );
   }
 
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @HasRoles(RoleType.ADMIN)
-  @ApiBearerAuth()
-  @ApiNoContentResponse({ description: 'Post deleted.' })
-  @ApiNotFoundResponse({ description: 'Post not found.' })
-  @ApiUnauthorizedResponse({ description: 'Not authenticated.' })
-  @ApiForbiddenResponse({ description: 'Admin role required.' })
-  deletePostById(
-    @Param('id', ParseObjectIdPipe) id: string,
-    @Res() res: Response,
-  ): Observable<Response> {
+  deletePostById(id: string, res: Response): Observable<Response> {
     return this.postService.deleteById(id).pipe(
       map(() => {
         return res.status(204).send();
@@ -135,16 +60,10 @@ export class PostController {
     );
   }
 
-  @Post(':id/comments')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @HasRoles(RoleType.USER)
-  @ApiBearerAuth()
-  @ApiCreatedResponse({ description: 'Comment created.' })
-  @ApiUnauthorizedResponse({ description: 'Not authenticated.' })
   createCommentForPost(
-    @Param('id', ParseObjectIdPipe) id: string,
-    @Body() data: CreateCommentDto,
-    @Res() res: Response,
+    id: string,
+    data: CreateCommentDto,
+    res: Response,
   ): Observable<Response> {
     return this.postService.createCommentFor(id, data).pipe(
       map((comment) => {
@@ -156,11 +75,112 @@ export class PostController {
     );
   }
 
-  @Get(':id/comments')
-  @ApiOkResponse({ description: 'List of comments for the post.' })
-  getAllCommentsOfPost(
-    @Param('id', ParseObjectIdPipe) id: string,
-  ): Observable<Comment[]> {
+  getAllCommentsOfPost(id: string): Observable<Comment[]> {
     return this.postService.commentsOf(id);
   }
 }
+
+/**
+ * The controller is rebuilt per request because the service behind it stamps
+ * the documents it writes with the calling principal.
+ */
+export const createPostRouter = (
+  createController: (req: Request) => PostController,
+  { throttler, validationPipe }: RouteDeps,
+): Router => {
+  const router = Router();
+  const parseObjectIdPipe = new ParseObjectIdPipe();
+  const jwtAuthGuard = new JwtAuthGuard();
+
+  const pathId = (req: Request): string =>
+    parseObjectIdPipe.transform(
+      validationPipe.transformPrimitive(req.params.id, String),
+    );
+
+  router.get(
+    '/',
+    throttler.forHandler('PostController', 'getAllPosts'),
+    handle((req) =>
+      createController(req).getAllPosts(
+        validationPipe.transformPrimitive(req.query.q, String),
+        parseIntValue(
+          defaultValue(
+            validationPipe.transformPrimitive(req.query.limit, Number),
+            10,
+          ),
+        ),
+        parseIntValue(
+          defaultValue(
+            validationPipe.transformPrimitive(req.query.skip, Number),
+            0,
+          ),
+        ),
+      ),
+    ),
+  );
+
+  router.get(
+    '/:id',
+    throttler.forHandler('PostController', 'getPostById'),
+    handle((req) => createController(req).getPostById(pathId(req))),
+  );
+
+  router.post(
+    '/',
+    throttler.forHandler('PostController', 'createPost'),
+    jwtAuthGuard.use(),
+    hasRoles(RoleType.USER, RoleType.ADMIN),
+    handle(async (req, res) =>
+      createController(req).createPost(
+        await validationPipe.transform(req.body, CreatePostDto),
+        res,
+      ),
+    ),
+  );
+
+  router.put(
+    '/:id',
+    throttler.forHandler('PostController', 'updatePost'),
+    jwtAuthGuard.use(),
+    hasRoles(RoleType.USER, RoleType.ADMIN),
+    handle(async (req, res) =>
+      createController(req).updatePost(
+        pathId(req),
+        await validationPipe.transform(req.body, UpdatePostDto),
+        res,
+      ),
+    ),
+  );
+
+  router.delete(
+    '/:id',
+    throttler.forHandler('PostController', 'deletePostById'),
+    jwtAuthGuard.use(),
+    hasRoles(RoleType.ADMIN),
+    handle((req, res) =>
+      createController(req).deletePostById(pathId(req), res),
+    ),
+  );
+
+  router.post(
+    '/:id/comments',
+    throttler.forHandler('PostController', 'createCommentForPost'),
+    jwtAuthGuard.use(),
+    hasRoles(RoleType.USER),
+    handle(async (req, res) =>
+      createController(req).createCommentForPost(
+        pathId(req),
+        await validationPipe.transform(req.body, CreateCommentDto),
+        res,
+      ),
+    ),
+  );
+
+  router.get(
+    '/:id/comments',
+    throttler.forHandler('PostController', 'getAllCommentsOfPost'),
+    handle((req) => createController(req).getAllCommentsOfPost(pathId(req))),
+  );
+
+  return router;
+};

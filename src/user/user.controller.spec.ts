@@ -1,4 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
+import { Types } from 'mongoose';
+import { User } from '../database/user.model';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { lastValueFrom, of } from 'rxjs';
@@ -7,20 +9,8 @@ describe('UserController', () => {
   let controller: UserController;
   let service: UserService;
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      providers: [
-        {
-          provide: UserService,
-          useValue: {
-            findById: jest.fn(),
-          },
-        },
-      ],
-      controllers: [UserController],
-    }).compile();
-
-    controller = app.get<UserController>(UserController);
-    service = app.get<UserService>(UserService);
+    service = createMock<UserService>();
+    controller = new UserController(service);
   });
 
   it('should be defined', () => {
@@ -31,13 +21,14 @@ describe('UserController', () => {
     jest
       .spyOn(service, 'findById')
       .mockImplementationOnce((id: string, withPosts: boolean = false) =>
-        of({
+        of<User>({
+          _id: new Types.ObjectId(),
           username: 'hantsy',
           password: 'mysecret',
           email: 'hantsy@example.com',
           firstName: 'hantsy',
           lastName: 'bai',
-        } as any),
+        }),
       );
     const user = await lastValueFrom(controller.getUser('id', false));
     expect(user.firstName).toBe('hantsy');

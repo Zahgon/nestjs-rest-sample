@@ -1,42 +1,30 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
 import { Connection, Model } from 'mongoose';
 import { Comment, CommentModel } from './comment.model';
+import { COMMENT_MODEL, POST_MODEL, USER_MODEL } from './database.constants';
 import {
-  COMMENT_MODEL,
-  DATABASE_CONNECTION,
-  POST_MODEL,
-  USER_MODEL,
-} from './database.constants';
-import { databaseModelsProviders } from './database-models.providers';
+  DatabaseModels,
+  createDatabaseModels,
+} from './database-models.providers';
 import { Post, PostModel } from './post.model';
 import { User, UserModel } from './user.model';
 
 describe('DatabaseModelsProviders', () => {
-  let conn: any;
-  let userModel: any;
-  let postModel: any;
-  let commentModel: any;
+  let conn: Connection;
+  let userModel: UserModel;
+  let postModel: PostModel;
+  let commentModel: CommentModel;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ...databaseModelsProviders,
+    conn = createMock<Connection>({
+      model: jest.fn().mockReturnValue({} as Model<User | Post | Comment>),
+    });
 
-        {
-          provide: DATABASE_CONNECTION,
-          useValue: {
-            model: jest
-              .fn()
-              .mockReturnValue({} as Model<User | Post | Comment>),
-          },
-        },
-      ],
-    }).compile();
+    const models: DatabaseModels = createDatabaseModels(conn);
 
-    conn = module.get<Connection>(DATABASE_CONNECTION);
-    userModel = module.get<UserModel>(USER_MODEL);
-    postModel = module.get<PostModel>(POST_MODEL);
-    commentModel = module.get<CommentModel>(COMMENT_MODEL);
+    userModel = models[USER_MODEL];
+    postModel = models[POST_MODEL];
+    commentModel = models[COMMENT_MODEL];
   });
 
   it('DATABASE_CONNECTION should be defined', () => {

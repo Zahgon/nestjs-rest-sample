@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { createMock } from '@golevelup/ts-jest';
+import { Response } from 'express';
 import { RegisterController } from './register.controller';
 import { UserService } from './user.service';
 import { of } from 'rxjs';
@@ -10,22 +11,8 @@ describe('Register Controller', () => {
   let service: UserService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [RegisterController],
-      providers: [
-        {
-          provide: UserService,
-          useValue: {
-            register: jest.fn(),
-            existsByUsername: jest.fn(),
-            existsByEmail: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    controller = module.get<RegisterController>(RegisterController);
-    service = module.get<UserService>(UserService);
+    service = createMock<UserService>();
+    controller = new RegisterController(service);
   });
 
   it('should be defined', () => {
@@ -44,11 +31,11 @@ describe('Register Controller', () => {
         .spyOn(service, 'register')
         .mockReturnValue(of({} as User));
 
-      const responseMock = {
+      const responseMock = createMock<Response>({
         location: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
         send: jest.fn().mockReturnThis(),
-      } as any;
+      });
       try {
         await controller.register(
           { username: 'hantsy' } as RegisterDto,
@@ -73,11 +60,11 @@ describe('Register Controller', () => {
         .spyOn(service, 'register')
         .mockReturnValue(of({} as User));
 
-      const responseMock = {
+      const responseMock = createMock<Response>({
         location: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
         send: jest.fn().mockReturnThis(),
-      } as any;
+      });
       try {
         await controller.register(
           { username: 'hantsy', email: 'hantsy@example.com' } as RegisterDto,
@@ -102,11 +89,11 @@ describe('Register Controller', () => {
         .spyOn(service, 'register')
         .mockReturnValue(of({ _id: '123' } as unknown as User));
 
-      const responseMock = {
+      const responseMock = createMock<Response>({
         location: jest.fn().mockReturnThis(),
         status: jest.fn().mockReturnThis(),
         send: jest.fn().mockReturnThis(),
-      } as any;
+      });
 
       const locationSpy = jest.spyOn(responseMock, 'location');
       const statusSpy = jest.spyOn(responseMock, 'status');

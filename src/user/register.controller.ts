@@ -1,26 +1,14 @@
-import { Body, ConflictException, Controller, Post, Res } from '@nestjs/common';
-import {
-  ApiConflictResponse,
-  ApiCreatedResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { Response } from 'express';
+import { Response, Router } from 'express';
 import { lastValueFrom } from 'rxjs';
+import { ConflictException } from '../core/http-exception';
+import { handle, RouteDeps } from '../core/route';
 import { RegisterDto } from './register.dto';
 import { UserService } from './user.service';
 
-@ApiTags('auth')
-@Controller('register')
 export class RegisterController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  @ApiCreatedResponse({ description: 'User registered successfully.' })
-  @ApiConflictResponse({ description: 'Username or email already exists.' })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Res() res: Response,
-  ): Promise<Response> {
+  async register(registerDto: RegisterDto, res: Response): Promise<Response> {
     const { username, email } = registerDto;
 
     const existsByUsername = await lastValueFrom(
@@ -44,3 +32,23 @@ export class RegisterController {
       .send();
   }
 }
+
+export const createRegisterRouter = (
+  controller: RegisterController,
+  { throttler, validationPipe }: RouteDeps,
+): Router => {
+  const router = Router();
+
+  router.post(
+    '/',
+    throttler.forHandler('RegisterController', 'register'),
+    handle(async (req, res) => {
+      await controller.register(
+        await validationPipe.transform(req.body, RegisterDto),
+        res,
+      );
+    }),
+  );
+
+  return router;
+};

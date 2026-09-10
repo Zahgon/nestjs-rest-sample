@@ -1,17 +1,31 @@
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';
 import { lastValueFrom } from 'rxjs';
 import { AuthService } from '../auth.service';
 import { UserPrincipal } from '../interface/user-principal.interface';
 
-@Injectable()
-export class LocalStrategy extends PassportStrategy(Strategy) {
-  constructor(private authService: AuthService) {
-    super({
-      usernameField: 'username',
-      passwordField: 'password',
-    });
+export class LocalStrategy extends Strategy {
+  private authService: AuthService;
+
+  constructor(authService: AuthService) {
+    super(
+      {
+        usernameField: 'username',
+        passwordField: 'password',
+      },
+      function (
+        this: LocalStrategy,
+        username: string,
+        password: string,
+        done: (error: any, user?: any) => void,
+      ) {
+        this.validate(username, password).then(
+          (user) => done(null, user),
+          (err) => done(err, null),
+        );
+      },
+    );
+
+    this.authService = authService;
   }
 
   // When using Observable as return type, the exeption in the pipeline is ignored.

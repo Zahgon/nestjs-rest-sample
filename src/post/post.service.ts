@@ -1,22 +1,19 @@
-import { Inject, Injectable, NotFoundException, Scope } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
 import { Model, Types } from 'mongoose';
 import { EMPTY, from, Observable, of } from 'rxjs';
 import { mergeMap, throwIfEmpty } from 'rxjs/operators';
 import { AuthenticatedRequest } from '../auth/interface/authenticated-request.interface';
+import { NotFoundException } from '../core/http-exception';
 import { Comment } from '../database/comment.model';
-import { COMMENT_MODEL, POST_MODEL } from '../database/database.constants';
 import { Post } from '../database/post.model';
 import { CreateCommentDto } from './create-comment.dto';
 import { CreatePostDto } from './create-post.dto';
 import { UpdatePostDto } from './update-post.dto';
 
-@Injectable({ scope: Scope.REQUEST })
 export class PostService {
   constructor(
-    @Inject(POST_MODEL) private readonly postModel: Model<Post>,
-    @Inject(COMMENT_MODEL) private readonly commentModel: Model<Comment>,
-    @Inject(REQUEST) private readonly req: AuthenticatedRequest,
+    private readonly postModel: Model<Post>,
+    private readonly commentModel: Model<Comment>,
+    private readonly req: AuthenticatedRequest,
   ) {}
 
   findAll(keyword?: string, skip = 0, limit = 10): Observable<Post[]> {

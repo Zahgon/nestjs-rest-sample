@@ -1,14 +1,8 @@
-import {
-  ArgumentMetadata,
-  BadRequestException,
-  Injectable,
-  PipeTransform
-} from '@nestjs/common';
 import * as mongoose from 'mongoose';
+import { BadRequestException } from '../../core/http-exception';
 
-@Injectable()
-export class ParseObjectIdPipe implements PipeTransform<string, string> {
-  transform(value: string, metadata: ArgumentMetadata) {
+export class ParseObjectIdPipe {
+  transform(value: string) {
     if (!mongoose.isValidObjectId(value)) {
       throw new BadRequestException(`$value is not a valid mongoose object id`);
     }

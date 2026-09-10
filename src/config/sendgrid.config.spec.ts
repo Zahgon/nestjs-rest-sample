@@ -1,15 +1,9 @@
-import { ConfigModule, ConfigType } from '@nestjs/config';
-import { TestingModule, Test } from '@nestjs/testing';
-import sendgridConfig from './sendgrid.config';
+import sendgridConfig, { SendgridConfig } from './sendgrid.config';
 
 describe('sendgridConfig', () => {
-  let config: ConfigType<typeof sendgridConfig>;
+  let config: SendgridConfig;
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forFeature(sendgridConfig)],
-    }).compile();
-
-    config = module.get<ConfigType<typeof sendgridConfig>>(sendgridConfig.KEY);
+    config = sendgridConfig();
   });
 
   it('should be defined', () => {

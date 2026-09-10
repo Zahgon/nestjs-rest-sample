@@ -1,5 +1,5 @@
-import { ExecutionContext } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Request, Response } from 'express';
+import { AuthGuard } from '../../core/auth-guard';
 import { LocalAuthGuard } from './local-auth.guard';
 
 describe('LocalAuthGuard', () => {
@@ -11,11 +11,12 @@ describe('LocalAuthGuard', () => {
     expect(guard).toBeDefined();
   });
   it('should return true for `canActivate`', async () => {
-    AuthGuard('local').prototype.canActivate = jest.fn(() =>
-      Promise.resolve(true),
-    );
-    AuthGuard('local').prototype.logIn = jest.fn(() => Promise.resolve());
-    expect(await guard.canActivate({} as ExecutionContext)).toBe(true);
+    const canActivate = AuthGuard.prototype.canActivate;
+    AuthGuard.prototype.canActivate = jest.fn(() => Promise.resolve(true));
+    try {
+      expect(await guard.canActivate({} as Request, {} as Response)).toBe(true);
+    } finally {
+      AuthGuard.prototype.canActivate = canActivate;
+    }
   });
-
 });

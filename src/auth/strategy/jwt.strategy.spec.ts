@@ -1,29 +1,20 @@
-import { ConfigType } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
 import { mock } from 'jest-mock-extended';
-import jwtConfig from '../../config/jwt.config';
+import { JwtConfig } from '../../config/jwt.config';
 import { RoleType } from '../../shared/enum/role-type.enum';
 import { JwtStrategy } from './jwt.strategy';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  let config: ConfigType<typeof jwtConfig>;
+  let config: JwtConfig;
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      providers: [
-        JwtStrategy,
-        {
-          provide: jwtConfig.KEY,
-          useValue: {
-            secretKey: 'test',
-            expiresIn: '100s',
-          },
-        },
-      ],
-    }).compile();
+    config = {
+      secretKey: 'test',
+      expiresIn: '100s',
+      refreshSecretKey: 'refresh-test',
+      refreshExpiresIn: '7d',
+    };
 
-    strategy = app.get<JwtStrategy>(JwtStrategy);
-    config = app.get<ConfigType<typeof jwtConfig>>(jwtConfig.KEY);
+    strategy = new JwtStrategy(config);
   });
 
   describe('validate', () => {
@@ -57,7 +48,7 @@ describe('JwtStrategy(call supper)', () => {
   });
 
   it('call super', () => {
-    const config = mock<ConfigType<typeof jwtConfig>>();
+    const config = mock<JwtConfig>();
     config.secretKey = 'test';
     new JwtStrategy(config);
     expect(parentMock.mock.calls.length).toBe(1);
